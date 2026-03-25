@@ -981,415 +981,302 @@ elif page == "B. Cleaning & Preparation":
             st.caption("This table shows all rows that violate the defined rules.")
 
         
-            st.title("📊 Data Visualization")
-            
-            # Reset button
-            if st.button("🔄 Upload Different File"):
-                st.session_state.df_working = None
-                st.session_state.file_name = None
-                st.rerun()
-            
-            df_source = st.session_state.df_working.copy()
-            filename = st.session_state.file_name
-            
-            # Show dataset info
-            st.write(f"**File:** {filename}")
-            st.write(f"**Shape:** {df_source.shape[0]:,} rows × {df_source.shape[1]} columns")
-            
-            st.divider()
-            
-            # ─────────────────────────────────────────
-            # FILTER SECTION (with multi-select columns)
-            # ─────────────────────────────────────────
-            st.subheader("🔽 Filter Data (Optional)")
-            
-            with st.expander("Apply Filters", expanded=False):
-                # Create a copy for filtering
-                filtered_df = df_source.copy()
-                
-                # Let user select which columns to filter
-                all_columns = df_source.columns.tolist()
-                selected_filter_cols = st.multiselect(
-                    "Select columns to filter on",
-                    options=all_columns,
-                    default=[],
-                    help="Choose one or more columns to add filters for."
-                )
-                
-                # Apply filters for each selected column
-                for col in selected_filter_cols:
-                    st.markdown(f"**Filter: {col}**")
-                    col_dtype = df_source[col].dtype
-                    
-                    # Numeric column - range slider
-                    if pd.api.types.is_numeric_dtype(col_dtype):
-                        min_val = float(df_source[col].min())
-                        max_val = float(df_source[col].max())
-                        
-                        if min_val == max_val:
-                            st.caption(f"Only one unique value: {min_val}")
-                            continue
-                        
-                        filter_range = st.slider(
-                            f"Range for {col}",
-                            min_value=min_val,
-                            max_value=max_val,
-                            value=(min_val, max_val),
-                            key=f"filter_{col}"
-                        )
-                        filtered_df = filtered_df[
-                            filtered_df[col].between(filter_range[0], filter_range[1])
-                        ]
-                    
-                    # Categorical/Text column - multi-select
-                    else:
-                        unique_vals = df_source[col].dropna().unique().tolist()
-                        
-                        # Limit if too many unique values
-                        if len(unique_vals) > 100:
-                            st.caption(f"⚠️ {col} has {len(unique_vals)} unique values. Showing top 100.")
-                            unique_vals = unique_vals[:100]
-                        
-                        selected_vals = st.multiselect(
-                            f"Values for {col}",
-                            options=unique_vals,
-                            default=unique_vals,
-                            key=f"filter_values_{col}"
-                        )
-                        
-                        if selected_vals:
-                            filtered_df = filtered_df[filtered_df[col].isin(selected_vals)]
-                        else:
-                            st.warning(f"No values selected for {col} - no rows will match.")
-                            filtered_df = filtered_df.iloc[0:0]  # Empty DataFrame
-                
-                # Show metrics after filtering
-                total_rows = len(df_source)
-                remaining_rows = len(filtered_df)
-                removed_rows = total_rows - remaining_rows
-                
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Total Rows", f"{total_rows:,}")
-                col2.metric("Rows After Filter", f"{remaining_rows:,}")
-                col3.metric("Rows Removed", f"{removed_rows:,}", 
-                            delta=f"-{removed_rows:,}" if removed_rows > 0 else "0",
-                            delta_color="inverse")
-                
-                if remaining_rows == 0:
-                    st.error("⚠️ No rows match your filters. Please adjust.")
-                    st.stop()
-            
-            st.divider()
-            
-            # ─────────────────────────────────────────
-            # CHART SELECTION
-            # ─────────────────────────────────────────
-            st.subheader("📈 Choose Your Chart")
-            
-            chart_type = st.selectbox(
-                "Chart Type",
-                ["Histogram", "Box Plot", "Scatter Plot", "Line Chart (Time Series)", 
-                 "Grouped Bar Chart", "Correlation Heatmap"]
-            )
-            
-            st.divider()
-            
-            # ─────────────────────────────────────────
-            # CHART RENDERING
-            # ─────────────────────────────────────────
+            elif page == "C. Visualization Builder":
+                 st.title("Visualization Builder")
+           
             
             # 1. HISTOGRAM
-            if chart_type == "Histogram":
-                st.subheader("Histogram")
-                
-                numeric_cols = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
-                
-                if not numeric_cols:
-                    st.error("No numeric columns available for histogram.")
-                else:
-                    col = st.selectbox("Select Column", numeric_cols)
-                    bins = st.slider("Number of Bins", 5, 100, 30)
-                    color = st.color_picker("Bar Color", "#4C72B0")
+                if chart_type == "Histogram":
+                    st.subheader("Histogram")
                     
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    ax.hist(filtered_df[col].dropna(), bins=bins, color=color, 
-                           edgecolor='black', alpha=0.7)
-                    ax.set_xlabel(col)
-                    ax.set_ylabel("Frequency")
-                    ax.set_title(f"Distribution of {col}")
-                    ax.grid(True, alpha=0.3)
-                    st.pyplot(fig)
-                    plt.close(fig)
-            
-            # 2. BOX PLOT
-            elif chart_type == "Box Plot":
-                st.subheader("Box Plot")
-                
-                numeric_cols = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
-                
-                if not numeric_cols:
-                    st.error("No numeric columns available for box plot.")
-                else:
-                    col = st.selectbox("Select Column", numeric_cols)
-                    color = st.color_picker("Box Color", "#55A868")
+                    numeric_cols = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
                     
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    bp = ax.boxplot(filtered_df[col].dropna(), patch_artist=True)
-                    for patch in bp['boxes']:
-                        patch.set_facecolor(color)
-                        patch.set_alpha(0.7)
-                    ax.set_ylabel(col)
-                    ax.set_title(f"Box Plot of {col}")
-                    ax.grid(True, alpha=0.3)
-                    st.pyplot(fig)
-                    plt.close(fig)
-            
-            # 3. SCATTER PLOT (with color by category)
-            elif chart_type == "Scatter Plot":
-                st.subheader("Scatter Plot")
-                
-                numeric_cols = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
-                cat_cols = filtered_df.select_dtypes(include=['object', 'category']).columns.tolist()
-                
-                if len(numeric_cols) < 2:
-                    st.error("Need at least 2 numeric columns for scatter plot.")
-                else:
-                    x_col = st.selectbox("X Axis", numeric_cols)
-                    y_col = st.selectbox("Y Axis", numeric_cols, index=min(1, len(numeric_cols)-1))
-                    
-                    # Color by category option
-                    color_mode = st.radio(
-                        "Color Mode",
-                        ["Single Color", "Color by Category"],
-                        horizontal=True
-                    )
-                    
-                    if color_mode == "Single Color":
-                        color = st.color_picker("Point Color", "#C44E52")
-                        color_col = None
+                    if not numeric_cols:
+                        st.error("No numeric columns available for histogram.")
                     else:
-                        if not cat_cols:
-                            st.warning("No categorical columns found. Using single color.")
+                        col = st.selectbox("Select Column", numeric_cols)
+                        bins = st.slider("Number of Bins", 5, 100, 30)
+                        color = st.color_picker("Bar Color", "#4C72B0")
+                        
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        ax.hist(filtered_df[col].dropna(), bins=bins, color=color, 
+                               edgecolor='black', alpha=0.7)
+                        ax.set_xlabel(col)
+                        ax.set_ylabel("Frequency")
+                        ax.set_title(f"Distribution of {col}")
+                        ax.grid(True, alpha=0.3)
+                        st.pyplot(fig)
+                        plt.close(fig)
+                
+                # 2. BOX PLOT
+                elif chart_type == "Box Plot":
+                    st.subheader("Box Plot")
+                    
+                    numeric_cols = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
+                    
+                    if not numeric_cols:
+                        st.error("No numeric columns available for box plot.")
+                    else:
+                        col = st.selectbox("Select Column", numeric_cols)
+                        color = st.color_picker("Box Color", "#55A868")
+                        
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        bp = ax.boxplot(filtered_df[col].dropna(), patch_artist=True)
+                        for patch in bp['boxes']:
+                            patch.set_facecolor(color)
+                            patch.set_alpha(0.7)
+                        ax.set_ylabel(col)
+                        ax.set_title(f"Box Plot of {col}")
+                        ax.grid(True, alpha=0.3)
+                        st.pyplot(fig)
+                        plt.close(fig)
+                
+                # 3. SCATTER PLOT (with color by category)
+                elif chart_type == "Scatter Plot":
+                    st.subheader("Scatter Plot")
+                    
+                    numeric_cols = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
+                    cat_cols = filtered_df.select_dtypes(include=['object', 'category']).columns.tolist()
+                    
+                    if len(numeric_cols) < 2:
+                        st.error("Need at least 2 numeric columns for scatter plot.")
+                    else:
+                        x_col = st.selectbox("X Axis", numeric_cols)
+                        y_col = st.selectbox("Y Axis", numeric_cols, index=min(1, len(numeric_cols)-1))
+                        
+                        # Color by category option
+                        color_mode = st.radio(
+                            "Color Mode",
+                            ["Single Color", "Color by Category"],
+                            horizontal=True
+                        )
+                        
+                        if color_mode == "Single Color":
                             color = st.color_picker("Point Color", "#C44E52")
                             color_col = None
                         else:
-                            color_col = st.selectbox("Color by Category", cat_cols)
-                            color = None
-                    
-                    alpha = st.slider("Opacity", 0.1, 1.0, 0.6)
-                    
-                    # Prepare data
-                    cols_needed = [x_col, y_col] + ([color_col] if color_col else [])
-                    plot_df = filtered_df[cols_needed].dropna()
-                    
-                    # Row limit for performance (3000 rows)
-                    if len(plot_df) > 3000:
-                        plot_df = plot_df.sample(3000, random_state=42)
-                        st.info(f"Showing sample of 3000 rows (total: {len(filtered_df):,})")
-                    
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    
-                    if color_col is None:
-                        # Single color
-                        ax.scatter(plot_df[x_col], plot_df[y_col], color=color, 
-                                  alpha=alpha, s=20)
-                    else:
-                        # Color by category
-                        categories = plot_df[color_col].unique()
-                        # Use matplotlib's default color cycle
-                        colors = plt.cm.tab10(np.linspace(0, 1, len(categories)))
+                            if not cat_cols:
+                                st.warning("No categorical columns found. Using single color.")
+                                color = st.color_picker("Point Color", "#C44E52")
+                                color_col = None
+                            else:
+                                color_col = st.selectbox("Color by Category", cat_cols)
+                                color = None
                         
-                        for i, cat in enumerate(categories):
-                            mask = plot_df[color_col] == cat
-                            ax.scatter(
-                                plot_df.loc[mask, x_col],
-                                plot_df.loc[mask, y_col],
-                                label=str(cat),
-                                color=colors[i],
-                                alpha=alpha,
-                                s=20
+                        alpha = st.slider("Opacity", 0.1, 1.0, 0.6)
+                        
+                        # Prepare data
+                        cols_needed = [x_col, y_col] + ([color_col] if color_col else [])
+                        plot_df = filtered_df[cols_needed].dropna()
+                        
+                        # Row limit for performance (3000 rows)
+                        if len(plot_df) > 3000:
+                            plot_df = plot_df.sample(3000, random_state=42)
+                            st.info(f"Showing sample of 3000 rows (total: {len(filtered_df):,})")
+                        
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        
+                        if color_col is None:
+                            # Single color
+                            ax.scatter(plot_df[x_col], plot_df[y_col], color=color, 
+                                      alpha=alpha, s=20)
+                        else:
+                            # Color by category
+                            categories = plot_df[color_col].unique()
+                            # Use matplotlib's default color cycle
+                            colors = plt.cm.tab10(np.linspace(0, 1, len(categories)))
+                            
+                            for i, cat in enumerate(categories):
+                                mask = plot_df[color_col] == cat
+                                ax.scatter(
+                                    plot_df.loc[mask, x_col],
+                                    plot_df.loc[mask, y_col],
+                                    label=str(cat),
+                                    color=colors[i],
+                                    alpha=alpha,
+                                    s=20
+                                )
+                            ax.legend(title=color_col, bbox_to_anchor=(1.05, 1), 
+                                     loc='upper left', fontsize=8)
+                        
+                        ax.set_xlabel(x_col)
+                        ax.set_ylabel(y_col)
+                        ax.set_title(f"{x_col} vs {y_col}")
+                        ax.grid(True, alpha=0.3)
+                        plt.tight_layout()
+                        st.pyplot(fig)
+                        plt.close(fig)
+                
+                # 4. LINE CHART (with aggregation)
+                elif chart_type == "Line Chart (Time Series)":
+                    st.subheader("Line Chart (Time Series)")
+                    
+                    # Find datetime columns
+                    datetime_cols = filtered_df.select_dtypes(include=['datetime64']).columns.tolist()
+                    numeric_cols = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
+                    
+                    if not numeric_cols:
+                        st.error("No numeric columns available for line chart.")
+                    else:
+                        # Choose x-axis (prefer datetime columns)
+                        x_options = datetime_cols + filtered_df.columns.tolist()
+                        x_col = st.selectbox("X Axis (Time)", x_options)
+                        y_col = st.selectbox("Y Axis (Numeric)", numeric_cols)
+                        
+                        # Aggregation options
+                        agg_func = st.selectbox(
+                            "Aggregate Duplicate X Values",
+                            ["sum", "mean", "median", "count", "max", "min"],
+                            help="If multiple rows share the same X value, combine them using this method."
+                        )
+                        
+                        # Prepare data with aggregation
+                        plot_df = filtered_df[[x_col, y_col]].dropna()
+                        
+                        # Group by x_col and aggregate
+                        if plot_df[x_col].duplicated().any():
+                            plot_df = plot_df.groupby(x_col)[y_col].agg(agg_func).reset_index()
+                            st.caption(f"Data aggregated using {agg_func} for duplicate X values.")
+                        
+                        # Sort by x axis
+                        plot_df = plot_df.sort_values(x_col)
+                        
+                        # Row limit for performance (3000 points)
+                        if len(plot_df) > 3000:
+                            plot_df = plot_df.sample(3000, random_state=42).sort_values(x_col)
+                            st.info(f"Showing sample of 3000 points (total: {len(plot_df):,})")
+                        
+                        color = st.color_picker("Line Color", "#8172B2")
+                        show_markers = st.checkbox("Show Point Markers", value=False)
+                        
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        marker = 'o' if show_markers else None
+                        ax.plot(plot_df[x_col], plot_df[y_col], color=color, 
+                               linewidth=1.5, marker=marker, markersize=3)
+                        ax.set_xlabel(x_col)
+                        ax.set_ylabel(f"{agg_func.capitalize()} of {y_col}")
+                        ax.set_title(f"{agg_func.capitalize()} of {y_col} over {x_col}")
+                        plt.xticks(rotation=45, ha='right')
+                        ax.grid(True, alpha=0.3)
+                        plt.tight_layout()
+                        st.pyplot(fig)
+                        plt.close(fig)
+                
+                # 5. GROUPED BAR CHART
+                elif chart_type == "Grouped Bar Chart":
+                    st.subheader("Grouped Bar Chart")
+                    
+                    cat_cols = filtered_df.select_dtypes(include=['object', 'category']).columns.tolist()
+                    numeric_cols = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
+                    
+                    if len(cat_cols) < 2:
+                        st.error("Need at least 2 categorical columns for grouped bar chart.")
+                    elif not numeric_cols:
+                        st.error("No numeric columns available for bar values.")
+                    else:
+                        x_col = st.selectbox("X Axis (Main Category)", cat_cols)
+                        group_col = st.selectbox(
+                            "Group By (Color Groups)",
+                            [c for c in cat_cols if c != x_col]
+                        )
+                        y_col = st.selectbox("Value (Numeric)", numeric_cols)
+                        agg_func = st.selectbox("Aggregation", ["mean", "sum", "median", "count"])
+                        top_n = st.slider("Show Top N Categories", 3, 20, 6)
+                        
+                        # Aggregate data
+                        agg_df = filtered_df.groupby([x_col, group_col])[y_col].agg(agg_func).reset_index()
+                        
+                        # Get top categories
+                        top_cats = filtered_df[x_col].value_counts().nlargest(top_n).index.tolist()
+                        agg_df = agg_df[agg_df[x_col].isin(top_cats)]
+                        
+                        # Prepare for plotting
+                        groups = agg_df[group_col].unique()
+                        x_cats = agg_df[x_col].unique()
+                        x_positions = np.arange(len(x_cats))
+                        bar_width = 0.8 / max(len(groups), 1)
+                        
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        
+                        for i, grp in enumerate(groups):
+                            subset = agg_df[agg_df[group_col] == grp]
+                            values = [
+                                subset[subset[x_col] == cat][y_col].values[0] 
+                                if cat in subset[x_col].values else 0
+                                for cat in x_cats
+                            ]
+                            ax.bar(
+                                x_positions + i * bar_width,
+                                values,
+                                width=bar_width,
+                                label=str(grp),
+                                edgecolor='white',
+                                linewidth=0.5
                             )
-                        ax.legend(title=color_col, bbox_to_anchor=(1.05, 1), 
-                                 loc='upper left', fontsize=8)
-                    
-                    ax.set_xlabel(x_col)
-                    ax.set_ylabel(y_col)
-                    ax.set_title(f"{x_col} vs {y_col}")
-                    ax.grid(True, alpha=0.3)
-                    plt.tight_layout()
-                    st.pyplot(fig)
-                    plt.close(fig)
-            
-            # 4. LINE CHART (with aggregation)
-            elif chart_type == "Line Chart (Time Series)":
-                st.subheader("Line Chart (Time Series)")
+                        
+                        ax.set_xticks(x_positions + bar_width * (len(groups) - 1) / 2)
+                        ax.set_xticklabels([str(c) for c in x_cats], rotation=45, ha='right')
+                        ax.set_xlabel(x_col)
+                        ax.set_ylabel(f"{agg_func.capitalize()} of {y_col}")
+                        ax.set_title(f"{y_col} by {x_col} grouped by {group_col}")
+                        ax.legend(title=group_col)
+                        ax.grid(True, alpha=0.3, axis='y')
+                        plt.tight_layout()
+                        st.pyplot(fig)
+                        plt.close(fig)
                 
-                # Find datetime columns
-                datetime_cols = filtered_df.select_dtypes(include=['datetime64']).columns.tolist()
-                numeric_cols = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
-                
-                if not numeric_cols:
-                    st.error("No numeric columns available for line chart.")
-                else:
-                    # Choose x-axis (prefer datetime columns)
-                    x_options = datetime_cols + filtered_df.columns.tolist()
-                    x_col = st.selectbox("X Axis (Time)", x_options)
-                    y_col = st.selectbox("Y Axis (Numeric)", numeric_cols)
+                # 6. CORRELATION HEATMAP
+                elif chart_type == "Correlation Heatmap":
+                    st.subheader("Correlation Heatmap")
                     
-                    # Aggregation options
-                    agg_func = st.selectbox(
-                        "Aggregate Duplicate X Values",
-                        ["sum", "mean", "median", "count", "max", "min"],
-                        help="If multiple rows share the same X value, combine them using this method."
-                    )
+                    numeric_df = filtered_df.select_dtypes(include=[np.number])
                     
-                    # Prepare data with aggregation
-                    plot_df = filtered_df[[x_col, y_col]].dropna()
-                    
-                    # Group by x_col and aggregate
-                    if plot_df[x_col].duplicated().any():
-                        plot_df = plot_df.groupby(x_col)[y_col].agg(agg_func).reset_index()
-                        st.caption(f"Data aggregated using {agg_func} for duplicate X values.")
-                    
-                    # Sort by x axis
-                    plot_df = plot_df.sort_values(x_col)
-                    
-                    # Row limit for performance (3000 points)
-                    if len(plot_df) > 3000:
-                        plot_df = plot_df.sample(3000, random_state=42).sort_values(x_col)
-                        st.info(f"Showing sample of 3000 points (total: {len(plot_df):,})")
-                    
-                    color = st.color_picker("Line Color", "#8172B2")
-                    show_markers = st.checkbox("Show Point Markers", value=False)
-                    
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    marker = 'o' if show_markers else None
-                    ax.plot(plot_df[x_col], plot_df[y_col], color=color, 
-                           linewidth=1.5, marker=marker, markersize=3)
-                    ax.set_xlabel(x_col)
-                    ax.set_ylabel(f"{agg_func.capitalize()} of {y_col}")
-                    ax.set_title(f"{agg_func.capitalize()} of {y_col} over {x_col}")
-                    plt.xticks(rotation=45, ha='right')
-                    ax.grid(True, alpha=0.3)
-                    plt.tight_layout()
-                    st.pyplot(fig)
-                    plt.close(fig)
-            
-            # 5. GROUPED BAR CHART
-            elif chart_type == "Grouped Bar Chart":
-                st.subheader("Grouped Bar Chart")
-                
-                cat_cols = filtered_df.select_dtypes(include=['object', 'category']).columns.tolist()
-                numeric_cols = filtered_df.select_dtypes(include=[np.number]).columns.tolist()
-                
-                if len(cat_cols) < 2:
-                    st.error("Need at least 2 categorical columns for grouped bar chart.")
-                elif not numeric_cols:
-                    st.error("No numeric columns available for bar values.")
-                else:
-                    x_col = st.selectbox("X Axis (Main Category)", cat_cols)
-                    group_col = st.selectbox(
-                        "Group By (Color Groups)",
-                        [c for c in cat_cols if c != x_col]
-                    )
-                    y_col = st.selectbox("Value (Numeric)", numeric_cols)
-                    agg_func = st.selectbox("Aggregation", ["mean", "sum", "median", "count"])
-                    top_n = st.slider("Show Top N Categories", 3, 20, 6)
-                    
-                    # Aggregate data
-                    agg_df = filtered_df.groupby([x_col, group_col])[y_col].agg(agg_func).reset_index()
-                    
-                    # Get top categories
-                    top_cats = filtered_df[x_col].value_counts().nlargest(top_n).index.tolist()
-                    agg_df = agg_df[agg_df[x_col].isin(top_cats)]
-                    
-                    # Prepare for plotting
-                    groups = agg_df[group_col].unique()
-                    x_cats = agg_df[x_col].unique()
-                    x_positions = np.arange(len(x_cats))
-                    bar_width = 0.8 / max(len(groups), 1)
-                    
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    
-                    for i, grp in enumerate(groups):
-                        subset = agg_df[agg_df[group_col] == grp]
-                        values = [
-                            subset[subset[x_col] == cat][y_col].values[0] 
-                            if cat in subset[x_col].values else 0
-                            for cat in x_cats
-                        ]
-                        ax.bar(
-                            x_positions + i * bar_width,
-                            values,
-                            width=bar_width,
-                            label=str(grp),
-                            edgecolor='white',
-                            linewidth=0.5
+                    if numeric_df.shape[1] < 2:
+                        st.error("Need at least 2 numeric columns for correlation heatmap.")
+                    else:
+                        # Let user select columns if too many
+                        if len(numeric_df.columns) > 15:
+                            selected_cols = st.multiselect(
+                                "Select columns to include",
+                                options=numeric_df.columns.tolist(),
+                                default=numeric_df.columns.tolist()[:10]
+                            )
+                            if len(selected_cols) < 2:
+                                st.warning("Select at least 2 columns.")
+                                st.stop()
+                            numeric_df = numeric_df[selected_cols]
+                        
+                        # Calculate correlation
+                        corr = numeric_df.corr()
+                        
+                        # Color map selection
+                        cmap = st.selectbox(
+                            "Color Map",
+                            ["coolwarm", "viridis", "RdYlGn", "Blues", "YlOrRd"]
                         )
-                    
-                    ax.set_xticks(x_positions + bar_width * (len(groups) - 1) / 2)
-                    ax.set_xticklabels([str(c) for c in x_cats], rotation=45, ha='right')
-                    ax.set_xlabel(x_col)
-                    ax.set_ylabel(f"{agg_func.capitalize()} of {y_col}")
-                    ax.set_title(f"{y_col} by {x_col} grouped by {group_col}")
-                    ax.legend(title=group_col)
-                    ax.grid(True, alpha=0.3, axis='y')
-                    plt.tight_layout()
-                    st.pyplot(fig)
-                    plt.close(fig)
-            
-            # 6. CORRELATION HEATMAP
-            elif chart_type == "Correlation Heatmap":
-                st.subheader("Correlation Heatmap")
-                
-                numeric_df = filtered_df.select_dtypes(include=[np.number])
-                
-                if numeric_df.shape[1] < 2:
-                    st.error("Need at least 2 numeric columns for correlation heatmap.")
-                else:
-                    # Let user select columns if too many
-                    if len(numeric_df.columns) > 15:
-                        selected_cols = st.multiselect(
-                            "Select columns to include",
-                            options=numeric_df.columns.tolist(),
-                            default=numeric_df.columns.tolist()[:10]
+                        show_values = st.checkbox("Show Correlation Values", value=True)
+                        
+                        fig, ax = plt.subplots(figsize=(10, 8))
+                        mask = np.triu(np.ones_like(corr, dtype=bool))
+                        
+                        sns.heatmap(
+                            corr,
+                            mask=mask,
+                            annot=show_values,
+                            fmt='.2f',
+                            cmap=cmap,
+                            center=0,
+                            square=True,
+                            linewidths=0.5,
+                            cbar_kws={"shrink": 0.8},
+                            ax=ax
                         )
-                        if len(selected_cols) < 2:
-                            st.warning("Select at least 2 columns.")
-                            st.stop()
-                        numeric_df = numeric_df[selected_cols]
-                    
-                    # Calculate correlation
-                    corr = numeric_df.corr()
-                    
-                    # Color map selection
-                    cmap = st.selectbox(
-                        "Color Map",
-                        ["coolwarm", "viridis", "RdYlGn", "Blues", "YlOrRd"]
-                    )
-                    show_values = st.checkbox("Show Correlation Values", value=True)
-                    
-                    fig, ax = plt.subplots(figsize=(10, 8))
-                    mask = np.triu(np.ones_like(corr, dtype=bool))
-                    
-                    sns.heatmap(
-                        corr,
-                        mask=mask,
-                        annot=show_values,
-                        fmt='.2f',
-                        cmap=cmap,
-                        center=0,
-                        square=True,
-                        linewidths=0.5,
-                        cbar_kws={"shrink": 0.8},
-                        ax=ax
-                    )
-                    ax.set_title("Correlation Matrix")
-                    plt.tight_layout()
-                    st.pyplot(fig)
-                    plt.close(fig)
-            
-            st.divider()
+                        ax.set_title("Correlation Matrix")
+                        plt.tight_layout()
+                        st.pyplot(fig)
+                        plt.close(fig)
+                
+                st.divider()
             
             # ─────────────────────────────────────────
             # DATA PREVIEW (Filtered Data)
@@ -1414,302 +1301,8 @@ elif page == "B. Cleaning & Preparation":
         if "page" not in st.session_state:
             st.session_state.page = "Upload"
         
-        # ─────────────────────────────────────────────
-        # SIDEBAR NAVIGATION
-        # ─────────────────────────────────────────────
-        st.sidebar.title("Functions")
-        page = st.sidebar.radio(
-            "Go to",
-            ["Upload", "Clean Data", "Overview", "Export & Report"]
-        )
-        st.session_state.page = page
-        
-        # ─────────────────────────────────────────────
-        # HELPER FUNCTION
-        # ─────────────────────────────────────────────
-        def is_data_loaded():
-            """Check if data exists and is not empty"""
-            return (
-                st.session_state.df_working is not None 
-                and not st.session_state.df_working.empty
-            )
-        
-        # ─────────────────────────────────────────────
-        # PAGE 1: UPLOAD
-        # ─────────────────────────────────────────────
-        # PAGE 1: UPLOAD
-        if page == "Upload":
-            st.title("📂 Upload Dataset")
-            st.write("Upload a CSV, Excel or JSON file to get started.")
-            
-            uploaded = st.file_uploader(
-                "Choose a file",
-                type=["csv", "xlsx", "xls", "json"],
-                help="Supported: CSV, Excel, JSON",
-                key="upload_page_uploader"  # ← UNIQUE KEY ADDED
-            )
-            
-            if uploaded is None:
-                st.info("👆 Please upload a file to begin.")
-            
-            else:
-                current_file = st.session_state.get("file_name")
-                is_new = current_file != uploaded.name
-                
-                if is_new:
-                    try:
-                        ext = uploaded.name.split(".")[-1].lower()
-                        
-                        if ext == "csv":
-                            # Try common encodings for CSV
-                            df = None
-                            for enc in ["utf-8", "latin1", "cp1252"]:
-                                try:
-                                    uploaded.seek(0)
-                                    df = pd.read_csv(uploaded, encoding=enc, on_bad_lines="skip")
-                                    break
-                                except UnicodeDecodeError:
-                                    continue
-                            
-                            if df is None:
-                                raise Exception("Could not read CSV with any encoding")
-                            
-                            msg = f"✅ CSV loaded: {len(df):,} rows × {df.shape[1]} columns"
-                            
-                        elif ext in ["xlsx", "xls"]:
-                            uploaded.seek(0)
-                            df = pd.read_excel(uploaded, engine="openpyxl")
-                            msg = f"✅ Excel loaded: {len(df):,} rows × {df.shape[1]} columns"
-                            
-                        elif ext == "json":
-                            uploaded.seek(0)
-                            df = pd.read_json(uploaded)
-                            msg = f"✅ JSON loaded: {len(df):,} rows × {df.shape[1]} columns"
-                        
-                        # Store in session state
-                        st.session_state.df_working = df
-                        st.session_state.df_original = df.copy()
-                        st.session_state.file_name = uploaded.name
-                        st.session_state.transform_log = []
-                        
-                        st.success(msg)
-                        
-                    except Exception as e:
-                        st.error(f"❌ Error reading file: {e}")
-                        st.session_state.df_working = None
-                        st.session_state.df_original = None
-                        st.session_state.file_name = None
-                        st.session_state.transform_log = []
-                else:
-                    df = st.session_state.df_working
-                    st.success(f"✅ {uploaded.name} already loaded ({len(df):,} rows)")
-                
-                # Show preview if data exists
-                if is_data_loaded():
-                    df = st.session_state.df_working
-                    
-                    st.divider()
-                    st.markdown("### Data Preview")
-                    
-                    col1, col2, col3 = st.columns(3)
-                    col1.metric("Rows", f"{len(df):,}")
-                    col2.metric("Columns", df.shape[1])
-                    col3.metric("Missing Values", f"{df.isna().sum().sum():,}")
-                    
-                    st.dataframe(df.head(50), use_container_width=True)
-                    
-                    with st.expander("Column Information"):
-                        info = pd.DataFrame({
-                            "Column": df.columns,
-                            "Type": df.dtypes.values,
-                            "Missing": df.isna().sum().values,
-                            "Missing %": (df.isna().sum() / len(df) * 100).round(1).values
-                        })
-                        st.dataframe(info, use_container_width=True, hide_index=True)
-        
-        # ─────────────────────────────────────────────
-        # PAGE 2: CLEAN DATA (Placeholder)
-        # ─────────────────────────────────────────────
-        elif page == "Clean Data":
-            st.title("🧹 Clean Data")
-            
-            if not is_data_loaded():
-                st.warning("⚠️ Please upload data first (Upload page).")
-            else:
-                st.write("Cleaning tools will go here...")
-                st.dataframe(st.session_state.df_working.head(100))
-        
-        # ─────────────────────────────────────────────
-        # PAGE 3: OVERVIEW (Simplified)
-        # ─────────────────────────────────────────────
-        elif page == "Overview":
-            st.title("🗂️ Data Overview")
-            
-            if not is_data_loaded():
-                st.warning("⚠️ No data loaded yet.")
-                st.info("👈 Go to the **Upload** page from the sidebar first.")
-            
-            else:
-                df = st.session_state.df_working
-                file_name = st.session_state.file_name or "dataset"
-                base_name = file_name.rsplit(".", 1)[0]  # Remove extension for downloads
-                
-                # Top metrics
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Rows", f"{len(df):,}")
-                col2.metric("Columns", df.shape[1])
-                col3.metric("Missing Values", f"{df.isna().sum().sum():,}")
-                col4.metric("Numeric Columns", f"{df.select_dtypes(include=[np.number]).shape[1]}")
-                
-                st.divider()
-                
-                # Data preview
-                st.markdown("### Data Preview (First 100 rows)")
-                st.dataframe(df.head(100), use_container_width=True)
-                
-                st.divider()
-                
-                # Reset button
-                st.markdown("### Reset Data")
-                st.caption("Clears the loaded dataset so you can upload a new file.")
-                if st.button("🔄 Reset — Clear Loaded Data"):
-                    st.session_state.df_working = None
-                    st.session_state.df_original = None
-                    st.session_state.file_name = None
-                    st.session_state.transform_log = []
-                    st.success("Dataset cleared. Go to Upload page to load a new file.")
-                    st.rerun()
-                
-                st.divider()
-                
-                # Download options
-                st.markdown("### Download Data")
-                st.caption("Download the current dataset (after any cleaning applied).")
-                
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    # CSV download
-                    csv_data = df.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="📥 Download CSV",
-                        data=csv_data,
-                        file_name=f"{base_name}_export.csv",
-                        mime="text/csv",
-                        use_container_width=True
-                    )
-                
-                with col2:
-                    # Excel download
-                    buffer = BytesIO()
-                    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                        df.to_excel(writer, index=False)
-                    buffer.seek(0)
-                    st.download_button(
-                        label="📥 Download Excel",
-                        data=buffer,
-                        file_name=f"{base_name}_export.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
-                
-                with col3:
-                    # JSON download
-                    json_data = df.to_json(orient="records", indent=2).encode('utf-8')
-                    st.download_button(
-                        label="📥 Download JSON",
-                        data=json_data,
-                        file_name=f"{base_name}_export.json",
-                        mime="application/json",
-                        use_container_width=True
-                    )
-                
-                st.divider()
-                
-                # Numeric summary
-                st.markdown("### Numeric Summary")
-                
-                numeric_df = df.select_dtypes(include=[np.number])
-                
-                if numeric_df.empty:
-                    st.info("No numeric columns found in the dataset.")
-                else:
-                    # Show descriptive statistics
-                    st.dataframe(numeric_df.describe(), use_container_width=True)
-                    
-                    # Optional: Show more detailed summary with column info
-                    with st.expander("Detailed Numeric Statistics"):
-                        summary = numeric_df.describe().T
-                        summary.columns = ["Count", "Mean", "Std", "Min", "25%", "50%", "75%", "Max"]
-                        st.dataframe(summary.round(4), use_container_width=True)
-        
-        # ─────────────────────────────────────────────
-        # PAGE 4: EXPORT & REPORT (Your Export Code)
-        # ─────────────────────────────────────────────
-        elif page == "Export & Report":
-            st.title("📤 Export & Report")
-            
-            if not is_data_loaded():
-                st.warning("⚠️ No data loaded. Please upload data first (Upload page).")
-            else:
-                df = st.session_state.df_working
-                filename = st.session_state.file_name or "data"
-                
-                # Reset button
-                if st.button("🔄 Upload Different File", key="upload_reset_button"):
-                    st.session_state.df_working = None
-                    st.session_state.df_original = None
-                    st.session_state.file_name = None
-                    st.session_state.transform_log = []
-                    st.rerun()
-                
-                # Show basic info
-                st.write(f"**File:** {filename}")
-                st.write(f"**Shape:** {df.shape[0]:,} rows × {df.shape[1]} columns")
-                
-                # Preview
-                with st.expander("🔍 Preview Data"):
-                    st.dataframe(df.head(100))
-                
-                st.divider()
-                
-                # Download section
-                st.subheader("📥 Download Cleaned Data")
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    # CSV download
-                    csv_data = df.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="Download as CSV",
-                        data=csv_data,
-                        file_name=f"cleaned_{filename}.csv",
-                        mime="text/csv"
-                    )
-                
-                with col2:
-                    # Excel download
-                    buffer = BytesIO()
-                    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                        df.to_excel(writer, index=False)
-                    buffer.seek(0)
-                    
-                    st.download_button(
-                        label="Download as Excel",
-                        data=buffer,
-                        file_name=f"cleaned_{filename}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                with col3:
-                    json_data = df.to_json(orient="records", indent=2).encode('utf-8')
-                    st.download_button(
-                        label="📥 Download JSON",
-                        data=json_data,
-                        file_name=f"cleaned_{filename}.json",
-                        mime="application/json",
-            )
-                st.divider()
+       
+       
                 
                 # Basic statistics
                 st.subheader("📊 Summary Statistics")
