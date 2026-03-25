@@ -980,9 +980,8 @@ elif page == "B. Cleaning & Preparation":
 
             st.caption("This table shows all rows that violate the defined rules.")
 
-        
-            elif page == "C. Visualization Builder":
-                 st.title("Visualization Builder")
+elif page == "C. Visualization Builder":
+     st.title("Visualization Builder")
            
             
             # 1. HISTOGRAM
